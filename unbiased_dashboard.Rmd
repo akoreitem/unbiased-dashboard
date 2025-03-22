@@ -1,0 +1,122 @@
+---
+title: "Unbiased Dashboard"
+author: "Ala Koreitem"
+date: "2025-03-21"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+
+```{r}
+#install packages
+library(dplyr)
+library(tidyr)
+library(readr)
+library(tidyverse)
+```
+
+
+```{r}
+#load csv files (both pulled from CDC: https://www.cdc.gov/measles/data-research/index.html)
+rm(list = ls()) #clears environment
+measles_cases <- read_csv("C:/Users/akoreitem/Documents/My Tableau Repository/Datasources/unbiased/measles_cases.csv")
+MRR_rates <- read_csv("C:/Users/akoreitem/Documents/My Tableau Repository/Datasources/unbiased/measles_MRR.csv")
+```
+
+
+```{r}
+measles_cases <- measles_cases %>% filter(year == "2025")
+measles_cases <- measles_cases %>% rename(STATE = geography)
+
+head(measles_cases)
+names(measles_cases)
+class(measles_cases)
+
+#only including 2023-24 data
+MRR_rates <- MRR_rates %>% filter(school_year == "2023-24")
+MRR_rates <- MRR_rates %>% rename(STATE = geography)
+head(MRR_rates)
+
+MRR_rates2 <- MRR_rates %>% rename(MRR_pct = estimate_pct, MMR_school_yr = school_year)
+
+str(MRR_rates2) #MRR_pct is chr var with %, need to remove % and convert to numeric
+MRR_rates2$MRR_pct <- as.numeric(gsub("%", "", MRR_rates2$MRR_pct)) 
+
+head(MRR_rates2$MRR_pct)
+
+```
+
+
+```{r}
+#merge the two datasets by geography
+cases_MRR <- left_join(measles_cases, MRR_rates2, by = "STATE", relationship = "many-to-many")
+head(cases_MRR)
+
+#check merged data
+head(cases_MRR)
+str(cases_MRR)
+
+cases_MRR$STATE <- as.character(cases_MRR$STATE)  # Ensure it's a character column
+unique(cases_MRR$STATE)
+cases_MRR$STATE <- trimws(cases_MRR$STATE)
+
+```
+
+
+
+```{r}
+#U.S. Cases in 2025 (pasted from: https://www.cdc.gov/measles/data-research/index.html)
+#Total cases: 378
+#Age
+#Under 5 years: 124 (33%)
+#5-19 years: 159 (42%)
+#20+ years: 86 (23%)
+#Age unknown: 9 (2%)
+#Vaccination Status
+#Unvaccinated or Unknown: 95%
+#One MMR dose: 3%
+#Two MMR doses: 2%
+
+#creating dataset with this info pulled from CDC:
+library(tibble)
+
+# Create the dataset
+measles_2025 <- tibble(
+  Total_Cases = 378,
+  Age_Under_5 = 124,
+  Age_5_19 = 159,
+  Age_20_plus = 86,
+  Age_Unknown = 9,
+  Unvax_Pct = 95,
+  MMR_1_Dose_Pct = 3,
+  MMR_2_Dose_Pct = 2)
+
+# View the dataset
+print(measles_2025)
+
+```
+
+
+```{r}
+# export to xlsx ready for tableau (tableau doesn't like csv files)
+install.packages("writexl")
+library(writexl)
+
+write_xlsx(cases_MRR, "C:/Users/akoreitem/Documents/My Tableau Repository/Datasources/unbiased/cases_MRR.xlsx")
+write_xlsx(measles_2025, "C:/Users/akoreitem/Documents/My Tableau Repository/Datasources/unbiased/measles_2025.xlsx")
+getwd()
+
+```
+
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
