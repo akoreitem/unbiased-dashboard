@@ -24,15 +24,15 @@ library(readr)
 library(tidyverse)
 ```
 
-
+##MEASLES DASH
 ```{r}
 #load csv files (both pulled from CDC: https://www.cdc.gov/measles/data-research/index.html)
 rm(list = ls()) #clears environment
-measles_cases <- read_csv("C:/Users/akoreitem/Documents/My Tableau Repository/Datasources/unbiased/measles_cases.csv")
-MRR_rates <- read_csv("C:/Users/akoreitem/Documents/My Tableau Repository/Datasources/unbiased/measles_MRR.csv")
+measles_cases <- read_csv("C:/Users/akoreitem/Documents/My Tableau Repository/Datasources/unbiased/measles/measles_cases.csv") #this csv needs to be exported from cdc every week
+MMR_rates <- read_csv("C:/Users/akoreitem/Documents/My Tableau Repository/Datasources/unbiased/measles/measles_MMR.csv")
 ```
 
-
+###Measles cases and MMR rates by state
 ```{r}
 measles_cases <- measles_cases %>% filter(year == "2025")
 measles_cases <- measles_cases %>% rename(STATE = geography)
@@ -42,81 +42,166 @@ names(measles_cases)
 class(measles_cases)
 
 #only including 2023-24 data
-MRR_rates <- MRR_rates %>% filter(school_year == "2023-24")
-MRR_rates <- MRR_rates %>% rename(STATE = geography)
-head(MRR_rates)
+MMR_rates <- MMR_rates %>% filter(school_year == "2023-24")
+MMR_rates <- MMR_rates %>% rename(STATE = geography)
+head(MMR_rates)
 
-MRR_rates2 <- MRR_rates %>% rename(MRR_pct = estimate_pct, MMR_school_yr = school_year)
+MMR_rates2 <- MMR_rates %>% rename(MMR_pct = estimate_pct, MMR_school_yr = school_year)
 
-str(MRR_rates2) #MRR_pct is chr var with %, need to remove % and convert to numeric
-MRR_rates2$MRR_pct <- as.numeric(gsub("%", "", MRR_rates2$MRR_pct)) 
+str(MMR_rates2) #MRR_pct is chr var with %, need to remove % and convert to numeric
+MMR_rates2$MMR_pct <- as.numeric(gsub("%", "", MMR_rates2$MMR_pct)) 
 
-head(MRR_rates2$MRR_pct)
+head(MMR_rates2$MMR_pct)
 
 ```
 
 
 ```{r}
 #merge the two datasets by geography
-cases_MRR <- left_join(measles_cases, MRR_rates2, by = "STATE", relationship = "many-to-many")
-head(cases_MRR)
+cases_MMR <- left_join(measles_cases, MMR_rates2, by = "STATE", relationship = "many-to-many")
+head(cases_MMR)
 
 #check merged data
-head(cases_MRR)
-str(cases_MRR)
+head(cases_MMR)
+str(cases_MMR)
 
-cases_MRR$STATE <- as.character(cases_MRR$STATE)  # Ensure it's a character column
-unique(cases_MRR$STATE)
-cases_MRR$STATE <- trimws(cases_MRR$STATE)
+cases_MMR$STATE <- as.character(cases_MMR$STATE)  # Ensure it's a character column
+unique(cases_MMR$STATE)
+cases_MMR$STATE <- trimws(cases_MMR$STATE)
 
 ```
 
 
+###MMR vaccination exemptions 2023-2024
+```{r}
+#install.packages("RSocrata")
+library(RSocrata)
+library(dplyr)
 
+# API URL (pulled from https://data.cdc.gov/Vaccinations/Vaccination-Coverage-and-Exemptions-among-Kinderga/ijqb-a7ye/about_data)
+url <- "https://data.cdc.gov/resource/ijqb-a7ye.csv"
+
+# Pull data
+cdc_data <- read.socrata(url)
+names(cdc_data)
+head(cdc_data)
+
+# Filter and keep vaccine exemption data for 2023–2024
+mmr_exempt <- cdc_data %>%
+  filter(year_season == "2023-24", vaccine == "Exemption") %>%
+  rename(STATE = geography, exempt_type = dose, exempt_pct = coverage_estimate) %>%
+  select(STATE, vaccine, exempt_type, exempt_pct, number_of_exemptions)
+
+head(mmr_exempt)
+names(mmr_exempt)
+
+# Merge the two datasets by state
+cases_MMR_exempt <- left_join(cases_MMR, mmr_exempt, by = "STATE", relationship = "many-to-many")
+
+head(cases_MMR_exempt)
+str(cases_MMR_exempt)
+```
+###Non-Medical Exemption policies by state
+```{r} 
+# I manually copy/pasted this data from: https://www.ncsl.org/health/state-non-medical-exemptions-from-school-immunization-requirements
+exempt_laws <- read_csv("C:/Users/akoreitem/Documents/My Tableau Repository/Datasources/unbiased/measles/School Vax_Exempt Policies.csv")
+
+# Transfer into one new column "exemption type" with two additional options "both" and "neither" non-medical exemptions
+exempt_laws <- exempt_laws %>%
+  rename(personal_exempt = "Personal Exemption",
+         rel_exempt = "Religious Exemption",
+         additional_notes = "Additional Details On Exemption Exceptions & Educational Requirements") %>%
+  mutate(
+    exempt_type = case_when(
+      personal_exempt == "Yes" & rel_exempt == "Yes" ~ "Both Exemptions",
+      personal_exempt == "Yes" & rel_exempt == "No"  ~ "Personal Exemption",
+      personal_exempt == "No"  & rel_exempt == "Yes" ~ "Religious Exemption",
+      personal_exempt == "No"  & rel_exempt == "No"  ~ "Neither",
+      TRUE ~ NA_character_   )) %>%
+  select(-c(personal_exempt, rel_exempt, additional_notes))
+
+
+head(exempt_laws)
+names(exempt_laws)
+```
+
+
+
+###Measles 2025
+####Cases by Age and MMR status
 ```{r}
 #U.S. Cases in 2025 (pasted from: https://www.cdc.gov/measles/data-research/index.html)
-#Total cases: 378
-#Age
-#Under 5 years: 124 (33%)
-#5-19 years: 159 (42%)
-#20+ years: 86 (23%)
-#Age unknown: 9 (2%)
-#Vaccination Status
-#Unvaccinated or Unknown: 95%
-#One MMR dose: 3%
+#Total cases: 607
+#Age:
+#Under 5 years: 196 (32%)
+#5-19 years: 240 (40%)
+#20+ years: 159 (26%)
+#Age unknown: 12 (2%)
+#Vaccination Status:
+#Unvaccinated or Unknown: 97%
+#One MMR dose: 1%
 #Two MMR doses: 2%
 
-#creating dataset with this info pulled from CDC:
+#creating dataset with this info pulled from CDC (last pulled: April 4th 2025):
 library(tibble)
 
-# Create the dataset
 measles_2025 <- tibble(
-  Total_Cases = 378,
-  Age_Under_5 = 124,
-  Age_5_19 = 159,
-  Age_20_plus = 86,
-  Age_Unknown = 9,
-  Unvax_Pct = 95,
-  MMR_1_Dose_Pct = 3,
+  Total_Cases = 607,
+  Age_Under_5 = 196,
+  Age_5_19 = 240,
+  Age_20_plus = 159,
+  Age_Unknown = 12,
+  Unvax_Pct = 97,
+  MMR_1_Dose_Pct = 1,
   MMR_2_Dose_Pct = 2)
 
-# View the dataset
 print(measles_2025)
 
 ```
 
 
+####Hospitalizations by age
+```{r}
+#US Hospitalizations 2025: 12%
+# 12% of cases hospitalized (74 of 607).
+#Percent of Age Group Hospitalized:
+#Under 5 years: 21% (42 of 196)
+#5-19 years: 8% (19 of 240)
+#20+ years: 8% (12 of 159)
+#Age unknown: 8% (1 of 12)
+
+#creating dataset with this info pulled from CDC (last pulled: April 4th 2025):
+measles_hosp <- tibble(
+  Total_Hosp = 74,
+  Age_Under_5 = 42,
+  Age_5_19 = 19,
+  Age_20_plus = 12,
+  Age_Unknown = 1)
+
+print(measles_hosp)
+```
+
+###Export xlsx
 ```{r}
 # export to xlsx ready for tableau (tableau doesn't like csv files)
-install.packages("writexl")
+#install.packages("writexl")
 library(writexl)
 
-write_xlsx(cases_MRR, "C:/Users/akoreitem/Documents/My Tableau Repository/Datasources/unbiased/cases_MRR.xlsx")
-write_xlsx(measles_2025, "C:/Users/akoreitem/Documents/My Tableau Repository/Datasources/unbiased/measles_2025.xlsx")
+write_xlsx(cases_MMR_exempt, "C:/Users/akoreitem/Documents/My Tableau Repository/Datasources/unbiased/measles/cases_MMR_exempt.xlsx")
+write_xlsx(mmr_exempt, "C:/Users/akoreitem/Documents/My Tableau Repository/Datasources/unbiased/measles/mmr_exemptions_2023_24.xlsx")
+write_xlsx(measles_2025, "C:/Users/akoreitem/Documents/My Tableau Repository/Datasources/unbiased/measles/measles_2025.xlsx")
+write_xlsx(measles_hosp, "C:/Users/akoreitem/Documents/My Tableau Repository/Datasources/unbiased/measles/measles_hosp.xlsx")
+write_xlsx(exempt_laws, "C:/Users/akoreitem/Documents/My Tableau Repository/Datasources/unbiased/measles/exemption_policies.xlsx")
 getwd()
 
 ```
 
+
+
+##TB DASH
+```{r}
+
+```
 
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
