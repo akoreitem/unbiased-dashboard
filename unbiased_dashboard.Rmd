@@ -54,7 +54,7 @@ MMR_rates2$MMR_pct <- as.numeric(gsub("%", "", MMR_rates2$MMR_pct))
 head(MMR_rates2$MMR_pct)
 
 ```
-
+t
 
 ```{r}
 #merge the two datasets by geography
@@ -104,7 +104,7 @@ str(cases_MMR_exempt)
 ###Non-Medical Exemption policies by state
 ```{r} 
 # I manually copy/pasted this data from: https://www.ncsl.org/health/state-non-medical-exemptions-from-school-immunization-requirements
-exempt_laws <- read_csv("C:/Users/akoreitem/Documents/My Tableau Repository/Datasources/unbiased/measles/School Vax_Exempt Policies.csv")
+exempt_laws <- read_csv("measles/School_Vax_Exempt_Policies.csv")
 
 # Transfer into one new column "exemption type" with two additional options "both" and "neither" non-medical exemptions
 exempt_laws <- exempt_laws %>%
